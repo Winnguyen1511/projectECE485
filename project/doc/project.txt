@@ -1,0 +1,48 @@
+
+
+1) Design L1 cache:
+    + Instruction cache
+    + Data cache
+2) Specification:
+    a) Instruction cache:
+        - 2-way associative.
+        - 16K sets.
+        - 64-byte lines.
+
+
+    b) Data cache:
+        - 4-way associative.
+        - 16K sets.
+        - 64-byte lines.
+        
+        -write allocate, write back
+        except for the first write to line is write-through.
+
+    LRU policy, backed by a shared L2 cache, inclusive cache.
+
+
+3) Project output:
+    a) Log activity:
+        - Number of cache reads.
+        - Number of cache write.
+        - Number of cache hit.
+        - Number of cache misses.
+        - cache hit ratio.
+    b) Communicate with L2 cache:
+        - Write to L2 <address>:
+            write back a modified line to L2 upon eviction from the L1 cache.
+        - Read from L2 <address>:
+            obtain data from L2 on L1 cache miss.
+        - Read for Ownership from L2 <address>:
+            obtain data from L2 on an L1 cache write miss.
+    c) Modes:
+        - mode 1: Displays stat and responses to 9s in the trace file.
+        - mode 2: Displays stat and commnicate messages.
+4) Trace:
+    <n> <address>
+    0: read data to data cache
+    1: write data to data cache
+    2: instruction fetch (read instruction cache)
+    3: evict command from L2(for L2 eviction and inclusivity)
+    8: clear cache, reset all state (and stat), continue to read trace file.
+    9: print contents and state of cache (continue reading trace, dont clear cache).
