@@ -7,6 +7,8 @@
 #include "memory_generic.h"
 #include <math.h>
 
+
+#define INSTRUCTION
 //data memory from 0-> 3/4 * 2^32 -1
 #define DATA_BASE_ADDR  0x1000000
 #define DATA_END_ADDR   0xffffffff
@@ -39,7 +41,8 @@ typedef enum return_enum {
     WRITE_L2,
     READ_L2,
     READ_L2_OWN,
-    EVICT_L2_OK
+    EVICT_L2_OK,
+    EVICT_L2_ERROR
 }return_t;
 
 typedef struct line_struct {
@@ -95,13 +98,15 @@ uint16_t get_line_LRU(cache_t cache, uint16_t tag_arr);
 int update_line_LRU(cache_t cache, line_t* lines);
 //Return cache read hit/miss:
 int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data);
-//Return cache write hit/miss:uint16_t get_line_LRU(cache_t cache, uint16_t tag_arr);
-int update_line_LRU(cache_t cache, line_t* lines);
+//Return cache write hit/miss:
 int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data);
+//update line LRU bit
+int update_line_LRU(cache_t cache, line_t* lines);
+
 //Clear cache:
 int cache_L1_clear(cache_t* cache);
 //Find which cache need to receive the invalidate command from L2:
-int get_invalidate_cache(uint32_t address);
+
 //
 int cache_L2_evict(cache_t* cache, uint32_t address);
 

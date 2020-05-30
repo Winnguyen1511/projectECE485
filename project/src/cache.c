@@ -335,6 +335,8 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                     {
                         (lines[index].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
                     }
+                    //Now return the byte:
+                    *data = (lines[index].data)[addr_bytes_offset];
                     return ret;
                 }
             }
@@ -346,7 +348,236 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
 //Return cache write hit/miss:
 int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
 {
-    return WRITE_HIT;
+    return_t ret = 0;
+    //Split tag, set, bytes offset of an address:
+    uint32_t addr_bytes_offset = get_bytes_offset(*cache, address);
+    uint32_t addr_set = get_set(*cache, address);
+    uint32_t addr_tag = get_tag(*cache, address);
+
+    if(!cache)
+    {
+        //return error
+        printf("Error: Invalid cache access\n");
+        return ERROR;
+    }
+
+    if((cache->sets)[addr_set].lines == NULL)
+    {
+        //there is no line in set:
+        //write miss: ret |= BIT(WRITE_MISS)
+        //  - Create set first: ep. create [ways_assoc] lines append to set
+        //  - Call cache L2 read to get 1 line(ret |= BIT(READ_L2_OWN)), place it in set
+        //      valid = 1, update tag, fake data = 64*DUMMY_BYTES.
+        //      write a new dummy byte to bytes_offset, dirty = 1;
+        
+        ret |= BIT(WRITE_MISS);
+        int i;
+        //Create the set: 
+        //line_t *lines = (line_t*)malloc((cache->ways_assoc) * sizeof(line_t));
+        line_t *lines = create_set(cache->ways_assoc);
+        if(lines == NULL)
+        {
+            printf("Error: Cannot create set of %d line\n", cache->ways_assoc);
+            return ERROR;
+        }
+        int size = pow(2, cache->bytes_num_bits);//should be 64
+        for(i = 0; i < cache->ways_assoc; i++)
+        {
+            lines[i].tag_array = 0;
+            lines[i].data = create_line(size);
+        }
+        (cache->sets)[addr_set].lines = lines;
+        //Now the set is not null, but it all empty(all valid == 0, no data in it)
+        
+        uint8_t *line_data = create_line(size);
+        if(cache_L2_read(cache, address, line_data) < 0)
+        {
+            printf("Error: Read L2 error\n");
+            return ERROR;
+        }
+
+        ret |= BIT(READ_L2_OWN);
+        lines[0].tag_array = 0;
+        lines[0].tag_array |= BIT(cache->V_BIT); //valid = 1;
+
+        lines[0].tag_array += addr_tag;//update tag
+        for(i = 0; i < size; i++)
+        {
+            (lines[0].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
+        }
+
+        //Now we write a new bytes and set dirty = 1:
+        (lines[0].data)[addr_bytes_offset] = data;
+        lines[0].tag_array |= BIT(cache->D_BIT);
+        return ret;
+    }
+    else{
+        //There are already some lines in set
+        //Or can be no line(all valid == 0).
+        //  - Use for loop to traverse the lines:
+        //      count the number of valids;
+        //      if valid :
+        //              + if line_tag == addr_tag: ret |= BIT(WRITE_HIT); write data.
+        //              + else: continue to search
+        //  - exit the loop: if still no where to get data ret |= BIT(WRITE_MISS)
+        //              + if count_valids < ways_assoc, call cache_L2_read() to get line, ret |= BIT(READ_L2_OWN)
+        //                  place it in the first available space in line. Then write a byte to bytes_offset.
+        //              + else count_valids == ways_assoc, -> need to replace LRU call index
+        //                  if lines[LRU] is not dirty -> no need to evict, call cache_L2_read(), ret |= BIT(READ_L2_OWN)
+        //                      in place the line in the LRU index. Then write a byte to bytes_offset.
+        //                  else: the lines[LRU] is dirty, call cache_L2_write() to evict, ret |= BIT(WRITE_L2);
+        //                      call cache_L2_read() to get the line, ret |= BIT(READ_L2). write to a byte to bytes_offset.
+        int i, count = 0, hit = 0;
+        line_t *lines = (cache->sets)[addr_set].lines;
+        for(i = 0; i < cache->ways_assoc; i++)
+        {
+            if(lines[i].tag_array & BIT(cache->V_BIT))
+            {
+                // printf("Attemp hit\n");
+                count++;
+                uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
+                tag_line_mask = ~tag_line_mask;
+                uint16_t line_tag = lines[i].tag_array & tag_line_mask;
+
+                if(line_tag == addr_tag){
+                    ret |= BIT(WRITE_HIT);
+                    hit = 1;
+                    (lines[i].data)[addr_bytes_offset] = data;
+                    lines[i].tag_array |= BIT(cache->D_BIT);//dirty = 1;
+
+                    if(get_line_LRU(*cache, lines[i].tag_array) != 0)
+                    {
+                        if(update_line_LRU(*cache, lines) < 0)
+                        {
+                            printf("Error: Cannot update LRU bit.\n");
+                            return ERROR;
+                        }
+                        lines[i].tag_array &= ~cache->LRU_line_mask;
+                    }
+                    
+                    return ret;
+                }
+            }
+        }
+        printf("count: %d\n", count);
+        if(hit == 0)
+        {
+            ret |= BIT(WRITE_MISS);
+            if(count < cache->ways_assoc)
+            {
+                //still have space to fill in.
+                int index =0;
+                for(i = 0; i < cache->ways_assoc; i++)
+                {
+                    //if()
+                    if(!(lines[i].tag_array & BIT(cache->V_BIT)))
+                    {
+                        //this index is avaiable
+                        index = i;
+                        break;
+                    }
+                }
+                
+                //Update old LRU bit of old lines, before adding new line
+                if(update_line_LRU(*cache, lines) < 0)
+                {
+                    printf("Error: Cannot update LRU bit.\n");
+                    return ERROR;
+                }
+                // int tmp_lru = get_line_LRU(*cache, lines[0].tag_array);
+                // printf("0 lru=%d\n", tmp_lru);
+                //Get a line from L2 cache:
+                int size = pow(2, cache->bytes_num_bits);//should be 64
+                uint8_t* line_data = create_line(size);
+                if(cache_L2_read(cache, address, line_data) < 0)
+                {
+                    printf("Error: Read L2 error\n");
+                    return ERROR;
+                }
+                ret |= BIT(READ_L2_OWN);
+                lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
+                uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
+                lines[index].tag_array &= tag_line_mask;// clear old tag
+                lines[index].tag_array += addr_tag;//update tag
+                for(i = 0; i < size; i++)
+                {
+                    (lines[index].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
+                }
+                //Now write the byte:
+                (lines[index].data)[addr_bytes_offset] = data;
+                lines[index].tag_array |= BIT(cache->D_BIT);// dirty = 1
+                return ret;
+            }
+            else {
+                //Now the count == ways_assoc, mean that the set is full of lines,
+                //Now we need to replace one of the line in the set.
+
+                //Update old LRU bit of old lines, before adding new line
+                int index = cal_LRU(*cache, lines);
+                if(update_line_LRU(*cache, lines) < 0)
+                {
+                    printf("Error: Cannot update LRU bit.\n");
+                    return ERROR;
+                }
+                
+                printf("lru index: %d\n", index);
+                if(!(lines[index].tag_array & BIT(cache->D_BIT)))
+                {
+                    //Line is not dirty:
+                    //Get a line from L2 cache:
+                    int size = pow(2, cache->bytes_num_bits);//should be 64
+                    uint8_t *line_data = create_line(size);
+                    if(cache_L2_read(cache, address, line_data) < 0)
+                    {
+                        printf("Error: Read L2 error\n");
+                        return ERROR;
+                    }
+                    ret |= BIT(READ_L2_OWN);
+                    // lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
+                    uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
+                    lines[index].tag_array &= tag_line_mask;// clear old tag
+                    lines[index].tag_array += addr_tag;//update tag
+                    for(i = 0; i < size; i++)
+                    {
+                        (lines[index].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
+                    }
+                }
+                else{
+                    //the line is dirty, now we need to evict it first:
+                    if(cache_L2_write(cache, address, lines[index].data) < 0)
+                    {
+                        printf("Error: Cannot evict line has addr=%x\n", address);
+                        return ERROR;
+                    }
+                    ret |= BIT(WRITE_L2);
+
+                    //Now we read new line
+                    //Get a line from L2 cache:
+                    int size = pow(2, cache->bytes_num_bits);//should be 64
+                    uint8_t *line_data =create_line(size);
+                    if(cache_L2_read(cache, address, line_data) < 0)
+                    {
+                        printf("Error: Read L2 error\n");
+                        return ERROR;
+                    }
+                    ret |= BIT(READ_L2_OWN);
+                    // lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
+                    uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
+                    lines[index].tag_array &= tag_line_mask;// clear old tag
+                    lines[index].tag_array += addr_tag;//update tag
+                    for(i = 0; i < size; i++)
+                    {
+                        (lines[index].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
+                    }
+                    //Now return the byte:
+                    (lines[index].data)[addr_bytes_offset] = data;
+                    lines[index].tag_array |= BIT(cache->D_BIT);
+                    return ret;
+                }
+            }
+        }
+    }
+    return ret;
 }
 
 int cache_L1_clear(cache_t* cache)
@@ -354,11 +585,42 @@ int cache_L1_clear(cache_t* cache)
     free(cache);
     return SUCCESS;
 }
-
+//Control the L2 evict command:
+//Just change valid bit of the line -> 0:
+//Indicate that the line is no longer usable:
 int cache_L2_evict(cache_t* cache, uint32_t address)
 {
-
-    return EVICT_L2_OK;
+    return_t ret = 0;
+    // uint32_t addr_bytes_offset = get_bytes_offset(*cache, address);
+    uint32_t addr_set = get_set(*cache, address);
+    uint32_t addr_tag = get_tag(*cache, address);
+    line_t* lines = (cache->sets)[addr_set].lines;
+    int i;
+    if(lines == NULL)
+    {
+        printf("Warning: The set with %x is null/empty\n", address);
+        return EVICT_L2_ERROR;
+    }
+    for(i =0 ; i < cache->ways_assoc; i++)
+    {
+        if(lines[i].tag_array & BIT(cache->V_BIT))
+        {
+            //Only consider valid line:
+            uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
+            tag_line_mask = ~tag_line_mask;
+            uint16_t line_tag = lines[i].tag_array & tag_line_mask;
+            if(line_tag == addr_tag)
+            {
+                ret |= BIT(EVICT_L2_OK);
+                //clear V bit, indicate that the line is no longer avaiable.
+                lines[i].tag_array &= ~BIT(cache->V_BIT);
+                return ret;
+            }
+        }
+    }
+    ret |= BIT(EVICT_L2_ERROR);
+    printf("Warning: There is no line affected\n");
+    return ret;
 }
 //LRU index calculation for evicting and replacing:
 int cal_LRU(cache_t cache, line_t* lines)
@@ -395,18 +657,7 @@ int cal_LRU(cache_t cache, line_t* lines)
     return index;
 }
 //For simulate L2 cache reference:
-int get_invalidate_cache(uint32_t address)
-{
-    if(address >= DATA_BASE_ADDR && address <= DATA_END_ADDR)
-    {
-        return 1;//indicate the data cache.
-    }
-    if(address >= INSTR_BASE_ADDR && address <= INSTR_END_ADDR)
-    {
-        return 0;//indicate the instruction cache.
-    }
-    return ERROR;
-}
+
 int cache_L2_read(cache_t* cache, uint32_t address, uint8_t* data)
 {
     //Just simulate the read from L2 cache:
@@ -453,11 +704,11 @@ int cache_stat_update(cache_stat_t*stat, return_t update, uint32_t address)
         //Activity log mode:
         if(update & BIT(WRITE_L2))
         {
-            fprintf(stat->log_file, "[MESSAGE]%s write to L2 %x\n",stat->name, address);
+            fprintf(stat->log_file, "[MESSAGE] %s write to L2 %x\n",stat->name, address);
         }
         if(update & BIT(READ_L2))
         {
-            fprintf(stat->log_file, "[MESSAGE]%s read from L2 %x\n", stat->name, address);
+            fprintf(stat->log_file, "[MESSAGE] %s read from L2 %x\n", stat->name, address);
         }
         if(update & BIT(READ_L2_OWN))
         {
@@ -473,8 +724,12 @@ int cache_log(cache_stat_t *stat)
     {
         fprintf(fp, "[LOG] Mode: %d\n", stat->mode);
     }
+    int reads_num = stat->read_hits + stat->read_misses;
+    int writes_num = stat->write_hits + stat->write_misses;
     fprintf(fp, "------------------------------\n");
     fprintf(fp, "> Cache: %s, log: %d\n", stat->name, stat->count);
+    fprintf(fp, "> #reads        : %d\n", reads_num);
+    fprintf(fp, "> #writes       : %d\n", writes_num);
     fprintf(fp, "> Read hits     : %d\n", stat->read_hits);
     fprintf(fp, "> Read misses   : %d\n", stat->read_misses);
     fprintf(fp, "> Write hits    : %d\n", stat->write_hits);

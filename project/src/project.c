@@ -4,10 +4,13 @@
 #include <time.h>
 #include "cache.h"
 
+#define INSTRUCTION_CACHE               0
 #define INSTRUCTION_CACHE_ASSOC_WAYS    2
 #define INSTRUCTION_CACHE_NUM_SETS      16*K
 #define INSTRUCTION_CACHE_LINE_SIZE     64
 
+
+#define DATA_CACHE                      1
 #define DATA_CACHE_ASSOC_WAYS           4
 #define DATA_CACHE_NUM_SETS             16*K
 #define DATA_CACHE_LINE_SIZE            64
@@ -20,6 +23,7 @@ cache_t *instruction_cache, *data_cache;
 
 int sysInit(char*trace_file_path,char*log_file_name, int mode);
 void sysDenit(void);
+int get_invalidate_cache(uint32_t address);
 int cache_request(int command, uint32_t address, cache_stat_t* instr_stat, cache_stat_t* data_stat);
 char *currTime(const char *format);
 int main(int argc, char**argv)
@@ -134,7 +138,6 @@ int sysInit(char*trace_file_path,char*log_file_name, int mode)
     data_cache_stat.write_hits = 0;
     data_cache_stat.write_misses = 0;
 
-
     return SUCCESS;
 }
 void sysDenit(void)
@@ -147,6 +150,19 @@ void sysDenit(void)
     {
         fclose(log_file);
     }
+}
+
+int get_invalidate_cache(uint32_t address)
+{
+    if(address >= DATA_BASE_ADDR && address <= DATA_END_ADDR)
+    {
+        return DATA_CACHE;//indicate the data cache.
+    }
+    if(address >= INSTR_BASE_ADDR && address <= INSTR_END_ADDR)
+    {
+        return INSTRUCTION_CACHE;//indicate the instruction cache.
+    }
+    return ERROR;
 }
 
 //Handle request from trace file:
@@ -191,13 +207,13 @@ int cache_request(int command, uint32_t address, cache_stat_t* instruction_cache
         int cache_num = get_invalidate_cache(address);
         cache_t *cache;
         cache_stat_t* stat;
-        if(cache_num == 0)
+        if(cache_num == DATA_CACHE)
         {
             cache = data_cache;
             stat = data_cache_stat;
             // update = cache_L2_evict(data_cache, address);
         }
-        else if( cache_num == 1)
+        else if(cache_num == INSTRUCTION_CACHE)
         {
             cache = instruction_cache;
             stat = instruction_cache_stat;
