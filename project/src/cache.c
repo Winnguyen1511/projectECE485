@@ -681,6 +681,50 @@ int cache_L2_write(cache_t* cache, uint32_t address, uint8_t* data)
     //further code can goes here.
     return SUCCESS;
 }
+
+
+cache_stat_t* cache_stat_create(char* cache_name, FILE* log_fp, int mode)
+{
+    cache_stat_t * stat = (cache_stat_t*)malloc(sizeof(cache_stat_t));
+    if(stat == NULL)
+    {
+        printf("Error: Internal error cache stat create\n");
+        return NULL;
+    }
+    stat->name = cache_name;
+    stat->count = 0;
+    stat->log_file = log_fp;
+    stat->mode = mode;
+    stat->read_hits = 0;
+    stat->read_misses = 0;
+    stat->write_hits = 0;
+    stat->write_misses = 0;
+    stat->hit_rate = 1;
+    return stat;
+}
+int cache_stat_init(cache_stat_t* stat,char* cache_name, FILE* log_fp, int mode)
+{
+    if(stat == NULL)
+    {
+        stat = cache_stat_create(cache_name, log_fp, mode);
+        if(stat == NULL)
+        {
+            printf("Error: Internal error cache_stat_init\n");
+            return ERROR;
+        }
+        return SUCCESS;
+    }
+    stat->name = cache_name;
+    stat->count = 0;
+    stat->log_file = log_fp;
+    stat->mode = mode;
+    stat->read_hits = 0;
+    stat->read_misses = 0;
+    stat->write_hits = 0;
+    stat->write_misses = 0;
+    stat->hit_rate = 1;
+    return SUCCESS;
+}
 int cache_stat_update(cache_stat_t*stat, return_t update, uint32_t address)
 {
     if(update & BIT(READ_HIT))

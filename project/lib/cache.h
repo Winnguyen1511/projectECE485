@@ -7,15 +7,6 @@
 #include "memory_generic.h"
 #include <math.h>
 
-
-#define INSTRUCTION
-//data memory from 0-> 3/4 * 2^32 -1
-#define DATA_BASE_ADDR  0x1000000
-#define DATA_END_ADDR   0xffffffff
-//The rest is instruction memory:
-#define INSTR_BASE_ADDR 0x0
-#define INSTR_END_ADDR  0xffffff
-
 #define SUCCESS     0
 #define ERROR       -1
 
@@ -119,6 +110,8 @@ int cache_L2_read(cache_t* cache, uint32_t address, uint8_t* data);
 int cache_L2_write(cache_t* cache, uint32_t address, uint8_t* data);
 
 //Log activity:
+cache_stat_t* cache_stat_create(char* cache_name, FILE* log_fp, int mode);
+int cache_stat_init(cache_stat_t* stat,char* cache_name, FILE* log_fp, int mode);
 int cache_stat_update(cache_stat_t*stat, return_t update, uint32_t address);
 int cache_log(cache_stat_t *stat);
 int clear_stat(cache_stat_t *stat);

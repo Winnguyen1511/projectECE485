@@ -4,16 +4,24 @@
 #include <time.h>
 #include "cache.h"
 
+
+//The rest is instruction memory:
+#define INSTR_BASE_ADDR 0x0
+#define INSTR_END_ADDR  0xffffff
 #define INSTRUCTION_CACHE               0
 #define INSTRUCTION_CACHE_ASSOC_WAYS    2
 #define INSTRUCTION_CACHE_NUM_SETS      16*K
 #define INSTRUCTION_CACHE_LINE_SIZE     64
 
-
+//data memory from 0-> 3/4 * 2^32 -1
+#define DATA_BASE_ADDR  0x1000000
+#define DATA_END_ADDR   0xffffffff
 #define DATA_CACHE                      1
 #define DATA_CACHE_ASSOC_WAYS           4
 #define DATA_CACHE_NUM_SETS             16*K
 #define DATA_CACHE_LINE_SIZE            64
+
+
 char* log_file_name = "log";
 // char* trace_file_name = "trace.txt" 
 FILE *trace_file;
@@ -60,11 +68,6 @@ int main(int argc, char**argv)
         printf("Error: System Initialize failed!\n");
         return ERROR;
     }
-    // printf("> data cache:\n");
-    // print_cache(*data_cache);
-    // printf("> instruction cache:\n");
-    // print_cache(*instruction_cache);
-    // printf("Time: %s\n", s);
     while(!feof(trace_file))
     {
         int command;
@@ -119,24 +122,16 @@ int sysInit(char*trace_file_path,char*log_file_name, int mode)
     printf("%s\n", log_path);
     log_file = fopen(log_path, "w");
     
-    instruction_cache_stat.name = "Instruction";
-    instruction_cache_stat.count = 0;
-    instruction_cache_stat.log_file = log_file;
-    instruction_cache_stat.mode = mode;
-    instruction_cache_stat.read_hits = 0;
-    instruction_cache_stat.read_misses = 0;
-    instruction_cache_stat.write_hits = 0;
-    instruction_cache_stat.write_misses = 0;
-    instruction_cache_stat.hit_rate = 1;
-
-    data_cache_stat.name = "Data";
-    data_cache_stat.count = 0;
-    data_cache_stat.log_file = log_file;
-    data_cache_stat.mode = mode;
-    data_cache_stat.read_hits = 0;
-    data_cache_stat.read_misses = 0;
-    data_cache_stat.write_hits = 0;
-    data_cache_stat.write_misses = 0;
+    if(cache_stat_init(&instruction_cache_stat, "Instruction", log_file, mode) < 0)
+    {
+        printf("Error: Instruction stat init failed\n");
+        return ERROR;
+    }
+    if(cache_stat_init(&data_cache_stat, "Data", log_file, mode) < 0)
+    {
+        printf("Error: Data stat init failed\n");
+        return ERROR;
+    }
 
     return SUCCESS;
 }
