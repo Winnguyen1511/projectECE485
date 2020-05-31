@@ -100,23 +100,58 @@ uint32_t get_bytes_offset(cache_t cache, uint32_t address)
 
 int update_line_LRU(cache_t cache, line_t* lines)
 {   
+    int max_lru = 0;
     int i;
-    for(i = 0; i < cache.ways_assoc; i++)
+    typedef struct query_struct {
+        int lru;
+        int index;
+    }query_t;
+    query_t list_query[cache.ways_assoc];
+    int list_query_size = 0;
+    for(i=0; i < cache.ways_assoc; i++)
     {
-        //only update valid line:
-        //otherwise, just leave it.
         if(lines[i].tag_array & BIT(cache.V_BIT))
         {
-            //just add 1 to lru bits.
-            uint16_t tmp = cache.D_BIT + 1;
-            lines[i].tag_array += BIT(tmp);
+            list_query[list_query_size].index = i;
+            list_query[list_query_size].lru = get_line_LRU(cache, lines[i].tag_array);
+            list_query_size++;
         }
     }
+    query_t max_lru_query;
+    max_lru_query.index = list_query[0].index;
+    max_lru_query.lru = list_query[0].lru;
+    for(i = 1; i < list_query_size; i++)
+    {
+        if(list_query[i].lru > max_lru_query.lru)
+        {
+            max_lru_query.index = list_query[i].index;
+            max_lru_query.lru = list_query[i].lru;
+        }
+    }
+    max_lru = max_lru_query.lru;
+
+    if(max_lru < cache.ways_assoc - 1)
+    {
+        for(i = 0; i < cache.ways_assoc; i++)
+        {
+            //only update valid line:
+            //otherwise, just leave it.
+            if(lines[i].tag_array & BIT(cache.V_BIT))
+            {
+                //just add 1 to lru bits.
+                    uint16_t tmp = cache.D_BIT + 1;
+                    lines[i].tag_array += BIT(tmp);
+            }
+        }
+    }
+    
     return SUCCESS;
 }
 //Return cache read hit/miss:
 int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
 {
+    int j;
+    
     
     // print_cache(*cache);
     return_t ret = 0;
@@ -198,6 +233,11 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
         //                      call cache_L2_read() to get the line, ret |= READ_L2.
         int i, count = 0, hit = 0;
         line_t *lines = (cache->sets)[addr_set].lines;
+        for(j = 0; j < 4; j++)
+        {
+            printf("lru:%d", get_line_LRU(*cache, lines[j].tag_array) );
+        }
+        printf("\n");
         for(i = 0; i < cache->ways_assoc; i++)
         {
             if(lines[i].tag_array & BIT(cache->V_BIT))
@@ -221,7 +261,6 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                         }
                         lines[i].tag_array &= ~cache->LRU_line_mask;
                     }
-                    
                     return ret;
                 }
             }
@@ -285,7 +324,6 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                     printf("Error: Cannot update LRU bit.\n");
                     return ERROR;
                 }
-                
                 printf("lru index: %d\n", index);
                 if(!(lines[index].tag_array & BIT(cache->D_BIT)))
                 {
@@ -299,7 +337,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                         return ERROR;
                     }
                     ret |= BIT(READ_L2);
-                    // lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
+                    lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
                     uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
                     lines[index].tag_array &= tag_line_mask;// clear old tag
                     lines[index].tag_array += addr_tag;//update tag
@@ -327,7 +365,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                         return ERROR;
                     }
                     ret |= BIT(READ_L2);
-                    // lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
+                    lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
                     uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
                     lines[index].tag_array &= tag_line_mask;// clear old tag
                     lines[index].tag_array += addr_tag;//update tag
@@ -521,6 +559,11 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
                 }
                 
                 printf("lru index: %d\n", index);
+                int j;
+                for(j = 0; j < 4; j++)
+                {
+                    printf("lru:%d", get_line_LRU(*cache, lines[j].tag_array) );
+                }
                 if(!(lines[index].tag_array & BIT(cache->D_BIT)))
                 {
                     //Line is not dirty:
@@ -582,7 +625,9 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
 
 int cache_L1_clear(cache_t* cache)
 {
-    free(cache);
+    free(cache->sets);
+    int sets_num = pow(2, cache->sets_num_bits);
+    cache->sets = (set_t*)malloc(sets_num * sizeof(set_t));
     return SUCCESS;
 }
 //Control the L2 evict command:
