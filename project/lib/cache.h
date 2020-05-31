@@ -75,6 +75,18 @@ typedef struct cache_stat_struct {
     double hit_rate;
 }cache_stat_t;
 
+typedef struct query_struct {
+    int lru;
+    int index;
+}query_t;
+
+typedef enum LRU_mode{
+    NEW_LINE=0,
+    ACCESS,
+    EVICT_LINE
+}LRU_mode_t;
+
+
 void print_cache(cache_t cache);
 cache_t* create_cache(int sets_num, int ways_assoc, int line_size);
 line_t* create_set(int ways_assoc);
@@ -86,13 +98,13 @@ uint32_t get_bytes_offset(cache_t cache, uint32_t address);
 
 //LRU calculation:
 uint16_t get_line_LRU(cache_t cache, uint16_t tag_arr);
-int update_line_LRU(cache_t cache, line_t* lines);
+//update line LRU bit:
+int update_line_LRU(cache_t cache, line_t* lines, uint16_t accessed_lru, LRU_mode_t mode);
 //Return cache read hit/miss:
 int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data);
 //Return cache write hit/miss:
 int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data);
-//update line LRU bit
-int update_line_LRU(cache_t cache, line_t* lines);
+
 
 //Clear cache:
 int cache_L1_clear(cache_t* cache);
