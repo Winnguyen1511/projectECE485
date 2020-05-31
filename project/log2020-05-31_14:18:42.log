@@ -1,0 +1,42 @@
+[LOG] Mode: 1
+------------------------------
+> Cache: Data, log: 0
+> #reads        : 1
+> #writes       : 2
+> Read hits     : 0
+> Read misses   : 1
+> Write hits    : 1
+> Write misses  : 1
+> Hit rate: 33.3%
+------------------------------
+[LOG] Mode: 1
+------------------------------
+> Cache: Instruction, log: 0
+> #reads        : 3
+> #writes       : 0
+> Read hits     : 2
+> Read misses   : 1
+> Write hits    : 0
+> Write misses  : 0
+> Hit rate: 66.7%
+------------------------------
+------------------------------
+> Cache: Data, log: 1
+> #reads        : 1
+> #writes       : 2
+> Read hits     : 0
+> Read misses   : 1
+> Write hits    : 1
+> Write misses  : 1
+> Hit rate: 33.3%
+------------------------------
+------------------------------
+> Cache: Instruction, log: 1
+> #reads        : 3
+> #writes       : 0
+> Read hits     : 1
+> Read misses   : 2
+> Write hits    : 0
+> Write misses  : 0
+> Hit rate: 33.3%
+------------------------------
