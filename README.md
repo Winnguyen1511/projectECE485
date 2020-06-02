@@ -18,7 +18,7 @@ University: Danang University of Sciences and Technology
 
 ![make](img/make.png)
 
-- If there is any error, try "make clean" and then "make" again.
+- If there is any error, try `make clean` and then `make` again.
 
 ## How to use
 - After make the project, you should have an execution file named "prog". We will use this file to run.
