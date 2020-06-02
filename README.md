@@ -1,4 +1,4 @@
-# projectECE485 Cache Simulation
+# Project ECE485: Cache Simulation
 Author: Nguyen Huynh Dang Khoa (aka Victor Nguyen), Nguyen Thi Minh Hien  
 
 May-June 2020  
@@ -11,9 +11,9 @@ University: Danang University of Sciences and Technology
 - Data cache specification: 4-way associative, 16K sets, 64-byte line.
 - Both cache use LRU replacement policy, the order of cache is inclusive.
 ## How to install
-- Dependency: You should use Linux environment, such as Ubuntu, MacOS for best experience.  
+- Dependencies: You should use Linux environment, such as Ubuntu, MacOS for best experience.  
 - Clone this directory by `git clone` or Download the zip.
-- Go into /project directory. 
+- Go into */project* directory. 
 - Open terminal and `make` the project.  
 
 ![make](img/make.png)
@@ -21,7 +21,7 @@ University: Danang University of Sciences and Technology
 - If there is any error, try `make clean` and then `make` again.
 
 ## How to use
-- After make the project, you should have an execution file named "prog". We will use this file to run.
+- After make the project, you should have an execution file named *prog*. We will use this file to run.
 - Syntax: `./prog [trace_file_name] [mode(optional)]`.  
           example: `./prog trace.txt`  
                    `./prog trace_data.txt 1`  
