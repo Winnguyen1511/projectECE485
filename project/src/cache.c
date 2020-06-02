@@ -731,8 +731,11 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
   */
 int cache_L1_clear(cache_t* cache)
 {
-    free(cache->sets);
     int sets_num = pow(2, cache->sets_num_bits);
+    int ways_assoc = cache->ways_assoc;
+    int line_size = pow(2, cache->bytes_num_bits);
+    free(cache);
+    cache = create_cache(sets_num, ways_assoc,line_size);
     cache->sets = (set_t*)malloc(sets_num * sizeof(set_t));
     return SUCCESS;
 }
