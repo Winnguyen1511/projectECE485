@@ -219,7 +219,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
     if((cache->sets)[addr_set].lines == NULL)
     {
         //there is no line in set:
-        //read miss: ret |= BIT(READ_MISS)
+        //read miss: ret |= READ_MISS
         //  - Create set first: ep. create [ways_assoc] lines append to set
         //  - Call cache L2 read to get 1 line(ret |= READ_L2), place it in set
         //      valid = 1, update tag, fake data = 64*DUMMY_BYTES.

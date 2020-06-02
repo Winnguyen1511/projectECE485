@@ -100,18 +100,21 @@ uint32_t get_bytes_offset(cache_t cache, uint32_t address);
 uint16_t get_line_LRU(cache_t cache, uint16_t tag_arr);
 //update line LRU bit:
 int update_line_LRU(cache_t cache, line_t* lines, uint16_t accessed_lru, LRU_mode_t mode);
+
 //Return cache read hit/miss:
 int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data);
 //Return cache write hit/miss:
 int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data);
-
-
+//Receive evict command from L2:
+int cache_L2_evict(cache_t* cache, uint32_t address);
 //Clear cache:
 int cache_L1_clear(cache_t* cache);
+
+
 //Find which cache need to receive the invalidate command from L2:
 
 //
-int cache_L2_evict(cache_t* cache, uint32_t address);
+
 
 
 //LRU index calculation for evicting and replacing:
@@ -120,6 +123,7 @@ int cal_LRU(cache_t cache, line_t* lines);
 int cache_L2_read(cache_t* cache, uint32_t address, uint8_t* data);
 // int cache_L2_write_line(cache_t* cache, )
 int cache_L2_write(cache_t* cache, uint32_t address, uint8_t* data);
+
 
 //Log activity:
 cache_stat_t* cache_stat_create(char* cache_name, FILE* log_fp, int mode);

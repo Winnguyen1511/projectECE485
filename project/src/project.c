@@ -32,7 +32,12 @@ cache_t *instruction_cache, *data_cache;
 int sysInit(char*trace_file_path,char*log_file_name, int mode);
 void sysDenit(void);
 int get_invalidate_cache(uint32_t address);
-int cache_request(int command, uint32_t address, cache_stat_t* instr_stat, cache_stat_t* data_stat);
+
+//Receive all request to cache L1:
+int cache_request(int command, uint32_t address,
+                    cache_stat_t* instr_stat,
+                    cache_stat_t* data_stat);
+
 char *currTime(const char *format);
 int main(int argc, char**argv)
 {
