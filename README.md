@@ -14,7 +14,8 @@ University: Danang University of Sciences and Technology
 - Dependency: You should use Linux environment, such as Ubuntu, MacOS for best experience.  
 - Clone this directory by git clone or Download the zip.
 - Go into /project directory. 
-- Open terminal and "make" the project.
+- Open terminal and "make" the project.  
+
 ![make](img/make.png)
 
 - If there is any error, try "make clean" and then "make" again.
@@ -30,8 +31,13 @@ University: Danang University of Sciences and Technology
         mode 2 is similar to mode 1, but it also prints communication message with L2 cache.
 - If you want to delete all log file:  
         make clear
-- After running the file, the result log file should be like this:  
+- After running the file, the result log file should be like this:   
+
 ![log](img/log.png)
+## Troubleshoot
+- If there is any trouble, please feel free to contact with me via email: khoanguyen1507vn@gmail.com.
+
+## Hope you like this !!!
 
 
 
