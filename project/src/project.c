@@ -21,7 +21,8 @@
 #define DATA_CACHE_NUM_SETS             16*K
 #define DATA_CACHE_LINE_SIZE            64
 
-
+#define MAX_SIZE    512
+char* log_dir="log/";
 char* log_file_name = "log";
 // char* trace_file_name = "trace.txt" 
 FILE *trace_file;
@@ -120,7 +121,8 @@ int sysInit(char*trace_file_path,char*log_file_name, int mode)
         return ERROR;
     }
     char *time_label = currTime("%F_%X");
-    char log_path[100] = {0};
+    char log_path[MAX_SIZE] = {0};
+    strcat(log_path, log_dir);
     strcat(log_path, log_file_name);
     strcat(log_path, time_label);
     strcat(log_path, ".log");

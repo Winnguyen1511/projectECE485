@@ -3,6 +3,7 @@ INC_DIR = lib
 BUILD_DIR = build
 OBJ_DIR = obj
 SRC_DIR = src
+LOG_DIR = log
 INC = $(addprefix -I, $(INC_DIR))
 LLIBS=m
 INC_DLL = $(addprefix -l, $(LLIBS))
@@ -24,7 +25,7 @@ prebuild:
 	@-mkdir -p $(OBJ_DIR)
 
 clear:
-	@-rm *.log
+	@-rm $(LOG_DIR)/*.log
 clean:
 	@-rm -rf $(OBJ_DIR)/*.o $(SRC_DIR)/*.o $(OBJ_DIR)
 	@-rm prog
