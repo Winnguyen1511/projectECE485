@@ -250,4 +250,6 @@ int update_line_LRU(cache_t cache, line_t* lines, uint16_t accessed_lru, LRU_mod
   * @}
   */
 
+
+int line_stat_log(cache_t cache, line_t* lines, uint32_t address);
 #endif

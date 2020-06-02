@@ -213,7 +213,6 @@ uint16_t get_line_LRU(cache_t cache, uint16_t tag_arr)
     return lru;
 }
 
-
 /* Cache request subfunctions ************************************************/
 
 /**
@@ -294,6 +293,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
         }
         //Now return the byte:
         *data = (lines[0].data)[addr_bytes_offset];
+        line_stat_log(*cache, lines, address);
         //finish a read miss.
         return ret;
     }
@@ -344,6 +344,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                         printf("Error: Cannot update LRU with addr=%x\n", address);
                         return ERROR;
                     }
+                    line_stat_log(*cache, lines, address);
                     return ret;
                 }
             }
@@ -394,6 +395,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                 }
                 //Now return the byte:
                 *data = (lines[index].data)[addr_bytes_offset];
+                line_stat_log(*cache, lines, address);
                 return ret;
             }
             else{
@@ -429,6 +431,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                     {
                         (lines[index].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
                     }
+                    line_stat_log(*cache, lines, address);
                 }
                 else{
                     //the line is dirty, now we need to evict it first:
@@ -459,6 +462,7 @@ int cache_L1_read(cache_t* cache, uint32_t address, uint8_t*data)
                     }
                     //Now return the byte:
                     *data = (lines[index].data)[addr_bytes_offset];
+                    line_stat_log(*cache, lines, address);
                     return ret;
                 }
             }
@@ -541,6 +545,7 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
         //Now we write a new bytes and set dirty = 1:
         (lines[0].data)[addr_bytes_offset] = data;
         lines[0].tag_array |= BIT(cache->D_BIT);
+        line_stat_log(*cache, lines, address);
         return ret;
     }
     else{
@@ -583,7 +588,7 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
                         printf("Error: Cannot update LRU with addr=%x\n", address);
                         return ERROR;
                     }
-                    
+                    line_stat_log(*cache, lines, address);
                     return ret;
                 }
             }
@@ -635,6 +640,7 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
                 //Now write the byte:
                 (lines[index].data)[addr_bytes_offset] = data;
                 lines[index].tag_array |= BIT(cache->D_BIT);// dirty = 1
+                line_stat_log(*cache, lines, address);
                 return ret;
             }
             else {
@@ -668,7 +674,7 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
                         return ERROR;
                     }
                     ret |= BIT(READ_L2_OWN);
-                    // lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
+                    lines[index].tag_array |= BIT(cache->V_BIT); //valid = 1;
                     uint16_t tag_line_mask = cache->LRU_line_mask | BIT(cache->D_BIT) | BIT(cache->V_BIT);
                     lines[index].tag_array &= tag_line_mask;// clear old tag
                     lines[index].tag_array += addr_tag;//update tag
@@ -676,6 +682,7 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
                     {
                         (lines[index].data)[i] = line_data[i];// copy from tmp_line to the 1st line.
                     }
+                    line_stat_log(*cache, lines, address);
                 }
                 else{
                     //the line is dirty, now we need to evict it first:
@@ -707,6 +714,7 @@ int cache_L1_write(cache_t* cache, uint32_t address, uint8_t data)
                     //Now return the byte:
                     (lines[index].data)[addr_bytes_offset] = data;
                     lines[index].tag_array |= BIT(cache->D_BIT);
+                    line_stat_log(*cache, lines, address);
                     return ret;
                 }
             }
@@ -769,13 +777,14 @@ int cache_L2_evict(cache_t* cache, uint32_t address)
                     return ERROR;
                 }
                 lines[i].tag_array &= ~BIT(cache->V_BIT);
-
+                line_stat_log(*cache, lines, address);
                 return ret;
             }
         }
     }
     ret |= BIT(EVICT_L2_ERROR);
-    printf("Warning: There is no line affected\n");
+    line_stat_log(*cache, lines, address);
+    printf("Warning: cache_evict_L2 There is no line affected\n");
     return ret;
 }
 
@@ -1186,3 +1195,31 @@ int update_line_LRU(cache_t cache, line_t* lines, uint16_t accessed_lru, LRU_mod
 /**
   * @}
   */
+
+int line_stat_log(cache_t cache, line_t* lines, uint32_t address)
+{
+    int i;
+    printf("> tag: ");
+    for(i = 0; i < cache.ways_assoc; i++)
+    {
+        uint16_t tag_line_mask = cache.LRU_line_mask | BIT(cache.D_BIT) | BIT(cache.V_BIT);
+        tag_line_mask = ~tag_line_mask;
+        uint16_t line_tag = lines[i].tag_array & tag_line_mask;
+        if(lines[i].tag_array & BIT(cache.V_BIT))
+            printf("%4x ",line_tag);
+        else{
+            printf("   x ");
+        }
+    }
+    printf("\n  lru: ");
+    for(i = 0; i < cache.ways_assoc; i++)
+    {
+        if(lines[i].tag_array & BIT(cache.V_BIT))
+            printf("%4d ",get_line_LRU(cache,lines[i].tag_array));
+        else{
+            printf("   x ");
+        }
+    }
+    printf("%x\n---------------------------\n", address);
+    return SUCCESS;
+}
